@@ -2,6 +2,7 @@ import random
 import torch
 from model import DQN
 from wordle_env import WordleEnv
+import sys
 
 def test_dqn(env, dqn, word_list):
     total_reward = 0
@@ -23,13 +24,20 @@ def test_dqn(env, dqn, word_list):
     print("Test Reward:", total_reward)
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 test.py TARGET_WORD")
+        sys.exit(1)
+    
+    target_word = sys.argv[1]
+
+
     with open('data/past_wordle_answers.txt') as f:
         past_answers = [line.strip() for line in f]
     
     with open('data/wordle_words.txt') as f:
         word_list = [line.strip() for line in f]
     
-    target_word = random.choice(past_answers)
+    # target_word = random.choice(past_answers
     env = WordleEnv(target_word, word_list)
     dqn = DQN(len(target_word), len(word_list))
     dqn.load_state_dict(torch.load("dqn_wordle.pth"))

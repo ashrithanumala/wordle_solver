@@ -7167,7 +7167,7 @@ lunar
 lunas
 lunch
 lunes
-lunet
+    lunet
 lunge
 lungi
 lungs

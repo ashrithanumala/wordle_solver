@@ -15,8 +15,6 @@ class WordleEnv:
         self.guesses = 0
         self.max_guesses = 6
         self.guessed_letters = set()
-        self.freq_counter = Counter(''.join(self.word_list))  # Frequency counter of letters in the word list
-        self.word_embeddings = self.get_word_embeddings()  # Word embeddings for the word list
 
     def reset(self):
         self.state = [0] * len(self.target_word)
@@ -35,10 +33,6 @@ class WordleEnv:
                 state.append(-1)  # Incorrect letter
                 self.guessed_letters.add(char)  # Add to guessed letters
         return state
-
-    def get_word_embeddings(self):
-        # Dummy function to generate word embeddings (replace with actual implementation)
-        return np.random.rand(len(self.word_list), 100)
 
     def select_word(self):
         candidate_words = []
@@ -61,7 +55,7 @@ class WordleEnv:
     def step(self, action):
         guessed_word = self.word_list[action]
         self.guesses += 1
-        
+        print(f"Guess: {self.guesses}")
         reward = 0
         done = False
         new_state = self.preprocess_word(guessed_word)

@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from model import DQN
 from replay_buffer import ReplayBuffer
 from wordle_env import WordleEnv
+from word_frequency import get_word_frequency
 
 def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsilon_start=1.0, epsilon_end=0.1, epsilon_decay=500):
     input_dim = len(env.target_word)
@@ -28,7 +29,12 @@ def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsi
         while True:
             # Use frequency analysis and heuristics to select actions
             candidate_words = env.select_word()
-            action = word_list.index(random.choice(candidate_words))
+            if random.random() < epsilon:
+                action = word_list.index(random.choice(candidate_words))
+            else:
+                state_tensor = torch.FloatTensor(state).unsqueeze(0)
+                q_values = dqn(state_tensor)
+                action = q_values.max(1)[1].item()
             
             next_state, reward, done = env.step(action)
             replay_buffer.push(state, action, reward, next_state, done)
@@ -71,7 +77,10 @@ if __name__ == "__main__":
     with open('data/wordle_words.txt') as f:
         word_list = [line.strip() for line in f]
     
+    # Get word frequencies for the word list
+    word_frequencies = {word: get_word_frequency(word) for word in word_list}
+    
     target_word = random.choice(past_answers)
-    env = WordleEnv(target_word, word_list)
+    env = WordleEnv(target_word, word_list, word_frequencies)
     dqn = train_dqn(env, word_list)
     torch.save(dqn.state_dict(), "dqn_wordle.pth")
