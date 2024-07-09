@@ -23,9 +23,6 @@ words = [item.get_text() for item in list_items]
 # Write the words to a file
 with open('past_wordle_answers.txt', 'w') as file:
     for word in words:
-        if len(word) > 5:
-            file.write(word.split(" ")[-1].lower() + '\n')
-        else:
-            file.write(word.lower() + '\n')
+        file.write(word + '\n')
 
 print("Past Wordle answers have been saved to past_wordle_answers.txt")
