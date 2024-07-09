@@ -1,10 +1,3 @@
-ether
-organ
-groom
-stark
-bravo
-basin
-chaos
 aback
 abase
 abate
@@ -16,6 +9,7 @@ abyss
 acrid
 actor
 acute
+adage
 adapt
 admit
 adobe
@@ -52,6 +46,7 @@ ample
 angel
 anger
 angry
+angst
 anode
 antic
 aorta
@@ -157,7 +152,9 @@ brook
 broom
 broth
 brush
+buddy
 buggy
+bugle
 build
 built
 bulky
@@ -170,6 +167,7 @@ cache
 candy
 canny
 canoe
+canon
 caper
 carat
 cargo
@@ -232,6 +230,7 @@ corny
 could
 count
 court
+cover
 covet
 cower
 coyly
@@ -252,7 +251,9 @@ crimp
 croak
 crone
 cross
+crowd
 crumb
+crush
 crust
 cumin
 curly
@@ -263,6 +264,7 @@ dance
 dandy
 death
 debug
+debut
 decay
 decal
 delta
@@ -270,6 +272,7 @@ delve
 denim
 depot
 depth
+deter
 devil
 diary
 digit
@@ -279,6 +282,7 @@ disco
 ditto
 dodge
 doing
+dolly
 donor
 donut
 doubt
@@ -290,6 +294,7 @@ drink
 drive
 droll
 droop
+drove
 duchy
 dutch
 duvet
@@ -299,6 +304,7 @@ dwelt
 early
 earth
 ebony
+edict
 egret
 eject
 elder
@@ -437,6 +443,7 @@ greet
 grief
 grime
 grimy
+grind
 gripe
 groin
 groom
@@ -467,6 +474,7 @@ heavy
 heist
 helix
 hello
+hence
 heron
 hinge
 hitch
@@ -496,6 +504,7 @@ index
 inept
 inert
 infer
+inlay
 input
 inter
 intro
@@ -518,6 +527,7 @@ kazoo
 kebab
 khaki
 kiosk
+knead
 kneel
 knelt
 knock
@@ -573,6 +583,7 @@ magma
 maize
 major
 mania
+manga
 manly
 manor
 maple
@@ -590,6 +601,7 @@ mealy
 meant
 medal
 media
+melon
 mercy
 merge
 merit
@@ -645,6 +657,7 @@ olive
 onion
 onset
 opera
+order
 organ
 other
 ought
@@ -652,6 +665,7 @@ outdo
 outer
 overt
 oxide
+paint
 panel
 panic
 papal
@@ -707,8 +721,10 @@ pride
 prime
 primo
 print
+prior
 prize
 probe
+proud
 prove
 prowl
 proxy
@@ -779,10 +795,13 @@ salsa
 salty
 sassy
 saute
+savor
 scald
 scant
 scare
 scarf
+scent
+scoff
 scold
 scope
 scorn
@@ -804,8 +823,8 @@ shame
 shank
 shard
 sharp
-shawl
 shave
+shawl
 shift
 shine
 shire
@@ -926,6 +945,7 @@ swill
 swine
 swirl
 swish
+swung
 syrup
 table
 taboo
@@ -945,11 +965,13 @@ tease
 tempo
 tenth
 tepid
+terse
 their
 theme
 there
 these
 thief
+thigh
 thing
 think
 third
@@ -1033,6 +1055,7 @@ valet
 value
 valid
 vapid
+vault
 venom
 verge
 verve
@@ -1088,7 +1111,5 @@ yearn
 yield
 young
 youth
+zebra
 zesty
-word.
-position.
-word.
