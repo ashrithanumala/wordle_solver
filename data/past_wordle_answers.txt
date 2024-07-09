@@ -1,10 +1,10 @@
-terse
-cover
-prior
-grind
-proud
-vault
-angst
+ether
+organ
+groom
+stark
+bravo
+basin
+chaos
 aback
 abase
 abate
@@ -52,7 +52,6 @@ ample
 angel
 anger
 angry
-angst
 anode
 antic
 aorta
@@ -233,7 +232,6 @@ corny
 could
 count
 court
-cover
 covet
 cower
 coyly
@@ -254,7 +252,6 @@ crimp
 croak
 crone
 cross
-crowd
 crumb
 crust
 cumin
@@ -273,7 +270,6 @@ delve
 denim
 depot
 depth
-deter
 devil
 diary
 digit
@@ -441,7 +437,6 @@ greet
 grief
 grime
 grimy
-grind
 gripe
 groin
 groom
@@ -472,7 +467,6 @@ heavy
 heist
 helix
 hello
-hence
 heron
 hinge
 hitch
@@ -579,7 +573,6 @@ magma
 maize
 major
 mania
-manga
 manly
 manor
 maple
@@ -597,7 +590,6 @@ mealy
 meant
 medal
 media
-melon
 mercy
 merge
 merit
@@ -715,10 +707,8 @@ pride
 prime
 primo
 print
-prior
 prize
 probe
-proud
 prove
 prowl
 proxy
@@ -936,7 +926,6 @@ swill
 swine
 swirl
 swish
-swung
 syrup
 table
 taboo
@@ -956,7 +945,6 @@ tease
 tempo
 tenth
 tepid
-terse
 their
 theme
 there
@@ -1045,7 +1033,6 @@ valet
 value
 valid
 vapid
-vault
 venom
 verge
 verve
