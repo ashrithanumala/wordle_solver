@@ -57,9 +57,6 @@ if __name__ == "__main__":
         print(f"Total Test Rewards: {total_rewards}")
     else:
         target_word = target_arg
-        if target_word not in past_answers:
-            print(f"Target word {target_word} is not in past_wordle_answers.txt")
-            sys.exit(1)
         
         env = WordleEnv(target_word, word_list)
         dqn = DQN(len(target_word), len(word_list))

@@ -1,71 +1,100 @@
 import random
 import numpy as np
-from collections import Counter
-from sklearn.metrics.pairwise import cosine_similarity
+from collections import defaultdict
 
 class WordleEnv:
     PARTIAL_REWARD = 6
     RIGHT_REWARD = 10
     WRONG_PENALTY = -3
+    MAX_GUESSES = 6
 
     def __init__(self, target_word, word_list):
         self.target_word = target_word
         self.word_list = [word for word in word_list]
-        self.state = [0] * len(target_word)
+        self.potential_words = self.word_list
+        self.state = [0, 0, 0, 0, 0]
         self.guesses = 0
-        self.max_guesses = 6
-        self.guessed_letters = set()
-        self.freq_counter = Counter(''.join(self.word_list))  # Frequency counter of letters in the word list
-        self.word_embeddings = self.get_word_embeddings()  # Word embeddings for the word list
-
+        self.guessed_wrong_letters = set()
+        self.right_letter_wrong_positions = defaultdict(list)
+        self.correct_positions = {}
+        self.letter_probs = []
+    
     def reset(self):
         self.state = [0] * len(self.target_word)
         self.guesses = 0
-        self.guessed_letters = set()
+        self.guessed_wrong_letters = set()
+        self.right_letter_wrong_positions = defaultdict(list)
+        self.potential_words = [word for word in self.word_list]
+        self.letter_probs = self.calculate_letter_frequencies(self.potential_words)
         return self.state
     
-    def preprocess_word(self, word):
+    def get_guess_state(self, word):
         state = []
         for i, char in enumerate(word):
             if char == self.target_word[i]:
                 state.append(2)  # Correct letter in the correct position
             elif char in self.target_word:
                 state.append(1)  # Correct letter in the wrong position
+                self.right_letter_wrong_positions[char].append(i)
             else:
                 state.append(-1)  # Incorrect letter
-                self.guessed_letters.add(char)  # Add to guessed letters
+                self.guessed_wrong_letters.add(char)
         return state
 
-    def get_word_embeddings(self):
-        # Dummy function to generate word embeddings (replace with actual implementation)
-        return np.random.rand(len(self.word_list), 100)
+    def calculate_letter_frequencies(self, word_list):
+        letter_freqs = [defaultdict(int) for _ in range(5)]
+        total_counts = [0] * 5
+
+        for word in word_list:
+            for i, char in enumerate(word):
+                letter_freqs[i][char] += 1
+                total_counts[i] += 1
+
+        letter_probs = []
+        for i in range(5):
+            letter_probs.append({char: count / total_counts[i] for char, count in letter_freqs[i].items()})
+
+        return letter_probs
+
+    def update_potential_words(self):
+        new_potential_words = []
+        for word in self.potential_words:
+            
+            if any(word[pos] != char for char, pos in self.correct_positions.items()):
+                continue
+            elif any(char in self.guessed_wrong_letters for char in word):
+                continue
+            elif any(word[pos] == char for char, pos_list in self.right_letter_wrong_positions.items() for pos in pos_list):
+                continue
+            new_potential_words.append(word)
+        self.potential_words = new_potential_words
+        self.letter_probs = self.calculate_letter_frequencies(self.potential_words)
+
+    def calculate_word_score(self, word):
+        score = 1.0
+        for i, char in enumerate(word):
+            score *= self.letter_probs[i].get(char, 1e-6)  # Use a small value for unseen letters
+        return score
 
     def select_word(self):
-        candidate_words = []
-        for word in self.word_list:
-            valid = True
-            for i, char_state in enumerate(self.state):
-                if char_state == 2 and word[i] != self.target_word[i]:  # Correct letter in the wrong position
-                    valid = False
-                    break
-                elif char_state == -1 and word[i] in self.guessed_letters:  # Incorrect letter
-                    valid = False
-                    break
-            if valid:
-                for i, char in enumerate(word):
-                    if char == self.target_word[i] and self.state[i] != 2:
-                        candidate_words.append(word)
-                        break
-        return candidate_words
+        if self.guesses == 0:
+            return ['crane', 'slate', 'trace', 'crate', 'caret']
+        self.update_potential_words()
+
+        word_scores = [(word, self.calculate_word_score(word)) for word in self.potential_words]
+
+        word_scores.sort(key=lambda x: x[1], reverse=True)
+
+        top_10_words = [word for word, score in word_scores[:10]]
+        return top_10_words
 
     def step(self, action):
         guessed_word = self.word_list[action]
         self.guesses += 1
-        
         reward = 0
         done = False
-        new_state = self.preprocess_word(guessed_word)
-        
+        new_state = self.get_guess_state(guessed_word)
+        print(f"Guess number {self.guesses}: {guessed_word}, {new_state}")
         for i in range(len(self.target_word)):
             if guessed_word[i] == self.target_word[i]:
                 reward += self.RIGHT_REWARD
@@ -74,28 +103,8 @@ class WordleEnv:
             else:
                 reward += self.WRONG_PENALTY
         
-        if guessed_word == self.target_word or self.guesses >= self.max_guesses:
+        if guessed_word == self.target_word or self.guesses >= self.MAX_GUESSES:
             done = True
         
         self.state = new_state
         return new_state, reward, done
-
-if __name__ == "__main__":
-    with open('data/past_wordle_answers.txt') as f:
-        past_answers = [line.strip() for line in f]
-    
-    with open('data/wordle_words.txt') as f:
-        word_list = [line.strip() for line in f]
-    
-    target_word = random.choice(past_answers)
-    env = WordleEnv(target_word, word_list)
-    
-    state = env.reset()
-    print("Initial state:", state)
-    
-    for _ in range(6):
-        action = random.randint(0, len(word_list) - 1)
-        new_state, reward, done = env.step(action)
-        print("Guessed word:", word_list[action], "New state:", new_state, "Reward:", reward, "Done:", done)
-        if done:
-            break
