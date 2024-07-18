@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 
 class WordleEnv:
@@ -10,24 +11,30 @@ class WordleEnv:
 
     def __init__(self, target_word, word_list):
         self.target_word = target_word
-        self.word_list = [word for word in word_list]
-        self.potential_words = self.word_list
+        self.word_list = self.create_word_df(word_list)
+        self.potential_words = self.word_list.copy()
         self.state = [0, 0, 0, 0, 0]
         self.guesses = 0
         self.guessed_wrong_letters = set()
         self.right_letter_wrong_positions = defaultdict(list)
         self.correct_positions = {}
         self.letter_probs = []
-    
+
+    def create_word_df(self, word_list):
+        df = pd.DataFrame({'word': word_list})
+        for i in range(5):
+            df[i] = df['word'].str[i]
+        return df
+
     def reset(self):
         self.state = [0] * len(self.target_word)
         self.guesses = 0
         self.guessed_wrong_letters = set()
         self.right_letter_wrong_positions = defaultdict(list)
-        self.potential_words = [word for word in self.word_list]
+        self.potential_words = self.word_list.copy()
         self.letter_probs = self.calculate_letter_frequencies(self.potential_words)
         return self.state
-    
+
     def get_guess_state(self, word):
         state = []
         for i, char in enumerate(word):
@@ -41,12 +48,13 @@ class WordleEnv:
                 self.guessed_wrong_letters.add(char)
         return state
 
-    def calculate_letter_frequencies(self, word_list):
+    def calculate_letter_frequencies(self, word_df):
         letter_freqs = [defaultdict(int) for _ in range(5)]
         total_counts = [0] * 5
 
-        for word in word_list:
-            for i, char in enumerate(word):
+        for index, row in word_df.iterrows():
+            for i in range(5):
+                char = row[i]
                 letter_freqs[i][char] += 1
                 total_counts[i] += 1
 
@@ -57,16 +65,17 @@ class WordleEnv:
         return letter_probs
 
     def update_potential_words(self):
-        new_potential_words = []
-        for word in self.potential_words:
-            
+        new_potential_words = self.potential_words.copy()
+
+        for index, row in self.potential_words.iterrows():
+            word = row['word']
             if any(word[pos] != char for char, pos in self.correct_positions.items()):
-                continue
+                new_potential_words = new_potential_words.drop(index)
             elif any(char in self.guessed_wrong_letters for char in word):
-                continue
+                new_potential_words = new_potential_words.drop(index)
             elif any(word[pos] == char for char, pos_list in self.right_letter_wrong_positions.items() for pos in pos_list):
-                continue
-            new_potential_words.append(word)
+                new_potential_words = new_potential_words.drop(index)
+        
         self.potential_words = new_potential_words
         self.letter_probs = self.calculate_letter_frequencies(self.potential_words)
 
@@ -81,7 +90,7 @@ class WordleEnv:
             return ['crane', 'slate', 'trace', 'crate', 'caret']
         self.update_potential_words()
 
-        word_scores = [(word, self.calculate_word_score(word)) for word in self.potential_words]
+        word_scores = [(row['word'], self.calculate_word_score(row['word'])) for index, row in self.potential_words.iterrows()]
 
         word_scores.sort(key=lambda x: x[1], reverse=True)
 
@@ -89,7 +98,7 @@ class WordleEnv:
         return top_10_words
 
     def step(self, action):
-        guessed_word = self.word_list[action]
+        guessed_word = self.word_list.loc[action, 'word']
         self.guesses += 1
         reward = 0
         done = False
