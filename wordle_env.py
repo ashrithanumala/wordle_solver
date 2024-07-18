@@ -52,7 +52,7 @@ class WordleEnv:
         letter_freqs = [defaultdict(int) for _ in range(5)]
         total_counts = [0] * 5
 
-        for index, row in word_df.iterrows():
+        for _, row in word_df.iterrows():
             for i in range(5):
                 char = row[i]
                 letter_freqs[i][char] += 1
@@ -67,17 +67,22 @@ class WordleEnv:
     def update_potential_words(self):
         new_potential_words = self.potential_words.copy()
 
-        for index, row in self.potential_words.iterrows():
-            word = row['word']
-            if any(word[pos] != char for char, pos in self.correct_positions.items()):
-                new_potential_words = new_potential_words.drop(index)
-            elif any(char in self.guessed_wrong_letters for char in word):
-                new_potential_words = new_potential_words.drop(index)
-            elif any(word[pos] == char for char, pos_list in self.right_letter_wrong_positions.items() for pos in pos_list):
-                new_potential_words = new_potential_words.drop(index)
-        
+        # Filter based on correct positions
+        for char, pos in self.correct_positions.items():
+            new_potential_words = new_potential_words[new_potential_words[pos] == char]
+
+        # Filter out words with guessed wrong letters
+        for char in self.guessed_wrong_letters:
+            new_potential_words = new_potential_words[~new_potential_words.apply(lambda row: char in row['word'], axis=1)]
+
+        # Filter out words with right letters in wrong positions
+        for char, pos_list in self.right_letter_wrong_positions.items():
+            for pos in pos_list:
+                new_potential_words = new_potential_words[new_potential_words[pos] != char]
+
         self.potential_words = new_potential_words
         self.letter_probs = self.calculate_letter_frequencies(self.potential_words)
+
 
     def calculate_word_score(self, word):
         score = 1.0
