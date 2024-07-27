@@ -2,7 +2,7 @@ import random
 import torch
 import sys
 from model import DQN
-from wordle_env import WordleEnv
+import wordle_env
 
 def test_dqn(env, dqn, word_list):
     total_reward = 0
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         sampled_answers = random.sample(past_answers, sample_size)
 
         for target_word in sampled_answers:
-            env = WordleEnv(target_word, word_list)
+            env = wordle_env.WordleEnv(target_word, word_list)
             dqn = DQN(len(target_word), len(word_list))
             dqn.load_state_dict(torch.load("dqn_wordle.pth"))
             reward = test_dqn(env, dqn, word_list)
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     else:
         target_word = target_arg
         
-        env = WordleEnv(target_word, word_list)
+        env = wordle_env.WordleEnv(target_word, word_list)
         dqn = DQN(len(target_word), len(word_list))
         dqn.load_state_dict(torch.load("dqn_wordle.pth"))
         reward = test_dqn(env, dqn, word_list)
