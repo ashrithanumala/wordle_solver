@@ -4,10 +4,11 @@ import torch.optim as optim
 import torch.nn.functional as F
 from model import DQN
 from replay_buffer import ReplayBuffer
-from wordle_env import WordleEnv
+import wordle_env
+import sys
 
-def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsilon_start=1.0, epsilon_end=0.1, epsilon_decay=500):
-    input_dim = len(env.target_word)
+def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsilon_start=1.0, epsilon_end=0.1, epsilon_decay=500,):
+    input_dim = 5
     output_dim = len(word_list)
     
     dqn = DQN(input_dim, output_dim)
@@ -65,13 +66,17 @@ def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsi
     return dqn
 
 if __name__ == "__main__":
+
     with open('data/past_wordle_answers.txt') as f:
         past_answers = [line.strip() for line in f]
     
     with open('data/wordle_words.txt') as f:
         word_list = [line.strip() for line in f]
+
+    with open('data/common_words.txt') as f:
+        common_words = [line.strip() for line in f]
     
     target_word = random.choice(past_answers)
-    env = WordleEnv(target_word, word_list)
+    env = wordle_env.WordleEnv(target_word, word_list, common_words)
     dqn = train_dqn(env, word_list)
     torch.save(dqn.state_dict(), "dqn_wordle.pth")

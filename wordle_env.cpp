@@ -32,6 +32,7 @@ public:
         correct_positions.clear();
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
+        logs.clear();
         return state;
     }
 
@@ -41,11 +42,7 @@ public:
         int reward = 0;
         bool done = false;
         std::vector<int> new_state = get_guess_state(guessed_word);
-        
-        std::ostringstream oss;
-        if (guesses == 1) {
-            oss << "TARGET: \"" << target_word << "\"" << std::endl;
-        }
+    
         
         for (size_t i = 0; i < target_word.size(); ++i) {
             if (guessed_word[i] == target_word[i]) {
@@ -60,15 +57,17 @@ public:
             }
         }
 
-        oss << "GUESS: \"" << guessed_word << "\" - [";
-        for (size_t i = 0; i < new_state.size(); ++i) {
-            oss << new_state[i];
-            if (i < new_state.size() - 1) {
+        std::ostringstream oss;
+        oss << "GUESS: \"" << guessed_word << "\" - STATE - [";
+        for (size_t i = 0; i < state.size(); ++i) {
+            oss << state[i];
+            if (i < state.size() - 1) {
                 oss << ", ";
             }
         }
-        oss << "] - " << reward << std::endl;
-        std::cout << oss.str();
+        oss << "] - REWARD - " << static_cast<int>(reward);
+        
+        logs.push_back(oss.str());
 
         if (guessed_word == target_word || guesses >= MAX_GUESSES) {
             done = true;
@@ -193,6 +192,10 @@ public:
         return top_10_words;
     }
 
+    const std::vector<std::string>& get_logs() const {
+        return logs;
+    }
+
 private:
     std::string target_word;
     std::vector<std::string> word_list;
@@ -204,6 +207,7 @@ private:
     std::unordered_map<char, std::vector<int>> right_letter_wrong_positions;
     std::unordered_map<int, char> correct_positions;
     std::vector<std::unordered_map<char, double>> letter_probs;
+    std::vector<std::string> logs;
 };
 
 PYBIND11_MODULE(wordle_env, m) {
@@ -211,5 +215,6 @@ PYBIND11_MODULE(wordle_env, m) {
         .def(py::init<const std::string&, const std::vector<std::string>&, const std::vector<std::string>&>())
         .def("reset", &WordleEnv::reset)
         .def("step", &WordleEnv::step)
-        .def("select_word", &WordleEnv::select_word);
+        .def("select_word", &WordleEnv::select_word)
+        .def("get_logs", &WordleEnv::get_logs);
 }

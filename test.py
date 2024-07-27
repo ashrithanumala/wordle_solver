@@ -66,3 +66,6 @@ if __name__ == "__main__":
         dqn.load_state_dict(torch.load("dqn_wordle.pth"))
         reward = test_dqn(env, dqn, word_list)
         print(f"Test Reward for {target_word}: {reward}")
+        logs = env.get_logs()
+        for log in logs:
+            print(log)
