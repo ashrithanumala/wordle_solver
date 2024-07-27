@@ -34,6 +34,9 @@ if __name__ == "__main__":
     with open('data/wordle_words.txt') as f:
         word_list = [line.strip() for line in f]
     
+    with open('data/common_words.txt') as f:
+        common_words = [line.strip() for line in f]
+    
     if target_arg == "all":
         total_rewards = 0
         rewards = []
@@ -41,7 +44,7 @@ if __name__ == "__main__":
         sampled_answers = random.sample(past_answers, sample_size)
 
         for target_word in sampled_answers:
-            env = wordle_env.WordleEnv(target_word, word_list)
+            env = wordle_env.WordleEnv(target_word, word_list, common_words)
             dqn = DQN(len(target_word), len(word_list))
             dqn.load_state_dict(torch.load("dqn_wordle.pth"))
             reward = test_dqn(env, dqn, word_list)
@@ -58,7 +61,7 @@ if __name__ == "__main__":
     else:
         target_word = target_arg
         
-        env = wordle_env.WordleEnv(target_word, word_list)
+        env = wordle_env.WordleEnv(target_word, word_list, common_words)
         dqn = DQN(len(target_word), len(word_list))
         dqn.load_state_dict(torch.load("dqn_wordle.pth"))
         reward = test_dqn(env, dqn, word_list)
