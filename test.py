@@ -53,11 +53,10 @@ if __name__ == "__main__":
             total_rewards += reward
             guesses += len(env.get_logs())
         
-        average_reward = total_rewards / len(past_answers)
-        max_reward = max(rewards)
-        min_reward = min(rewards)
+        average_reward = total_rewards / len(sampled_answers)
         print(f"Average Test Reward: {average_reward}")
-        print(f"Average Guesses: {guesses / len(past_answers)}")
+        print(f"Average Guesses: {guesses / len(sampled_answers)}")
+        print(f"Over {len(sampled_answers)} sampled words")
     else:
         target_word = target_arg
         

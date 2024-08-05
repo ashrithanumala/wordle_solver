@@ -6,6 +6,6 @@
         "*.js.liquid": "liquid-javascript",
         "*.css.liquid": "liquid-css",
         "*.scss.liquid": "liquid-scss",
-        "vector": "cpp"
+        "string": "cpp"
     }
 }

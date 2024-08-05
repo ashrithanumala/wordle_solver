@@ -1,12 +1,12 @@
+#include "cuckoo.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #include <string>
-#include <algorithm>
-#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
 #include <sstream>
+#include <algorithm>
 
 namespace py = pybind11;
 
@@ -22,6 +22,10 @@ public:
         state = std::vector<int>(target_word.size(), 0);
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
+
+        // Initialize Cuckoo Filters for managing letters and positions
+        filter_by_position.resize(target_word.size(), CuckooFilter(10000, 4));
+        filter_by_letter = CuckooFilter(10000, 4);
     }
 
     std::vector<int> reset() {
@@ -33,6 +37,12 @@ public:
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
         logs.clear();
+
+        for (auto& filter : filter_by_position) {
+            filter = CuckooFilter(10000, 4);
+        }
+        filter_by_letter = CuckooFilter(10000, 4);
+
         return state;
     }
 
@@ -42,15 +52,17 @@ public:
         int reward = 0;
         bool done = false;
         std::vector<int> new_state = get_guess_state(guessed_word);
-    
-        
+
+        // Update filters based on guessed word
         for (size_t i = 0; i < target_word.size(); ++i) {
             if (guessed_word[i] == target_word[i]) {
                 reward += RIGHT_REWARD;
                 correct_positions[i] = guessed_word[i];
+                filter_by_position[i].insert(std::string(1, guessed_word[i]));
             } else if (target_word.find(guessed_word[i]) != std::string::npos) {
                 reward += PARTIAL_REWARD;
                 right_letter_wrong_positions[guessed_word[i]].push_back(i);
+                filter_by_letter.insert(std::string(1, guessed_word[i]));
             } else {
                 reward += WRONG_PENALTY;
                 guessed_wrong_letters.insert(guessed_word[i]);
@@ -65,7 +77,7 @@ public:
                 oss << ", ";
             }
         }
-        oss << "] - REWARD - " << static_cast<int>(reward);
+        oss << "] - REWARD - " << reward;
         
         logs.push_back(oss.str());
 
@@ -79,11 +91,25 @@ public:
 
     std::vector<int> get_guess_state(const std::string& word) {
         std::vector<int> state(target_word.size(), 0);
+        std::unordered_map<char, int> letter_count;
+
+        // Count occurrences of each letter in the guessed word
+        for (const auto& ch : word) {
+            letter_count[ch]++;
+        }
+
         for (size_t i = 0; i < word.size(); ++i) {
-            if (word[i] == target_word[i]) {
+            char guessed_char = word[i];
+            if (target_word[i] == guessed_char) {
                 state[i] = 2; // Correct letter in the correct position
-            } else if (target_word.find(word[i]) != std::string::npos) {
-                state[i] = 1; // Correct letter in the wrong position
+                letter_count[guessed_char]--; // Decrement count
+            } else if (target_word.find(guessed_char) != std::string::npos) {
+                if (letter_count[guessed_char] > 0) {
+                    state[i] = 1; // Correct letter in the wrong position
+                } else {
+                    state[i] = -1; // Incorrect letter (but letter is in the target word)
+                }
+                letter_count[guessed_char]--; // Decrement count
             } else {
                 state[i] = -1; // Incorrect letter
             }
@@ -92,8 +118,8 @@ public:
     }
 
     std::vector<std::unordered_map<char, double>> calculate_letter_frequencies(const std::vector<std::string>& words) {
-        std::vector<std::unordered_map<char, int>> letter_counts(5);
-        std::vector<int> total_counts(5, 0);
+        std::vector<std::unordered_map<char, int>> letter_counts(target_word.size());
+        std::vector<int> total_counts(target_word.size(), 0);
 
         for (const auto& word : words) {
             for (size_t i = 0; i < word.size(); ++i) {
@@ -102,10 +128,10 @@ public:
             }
         }
 
-        std::vector<std::unordered_map<char, double>> letter_probs(5);
-        for (size_t i = 0; i < 5; ++i) {
-            for (auto it = letter_counts[i].begin(); it != letter_counts[i].end(); ++it) {
-                letter_probs[i][it->first] = static_cast<double>(it->second) / total_counts[i];
+        std::vector<std::unordered_map<char, double>> letter_probs(target_word.size());
+        for (size_t i = 0; i < letter_counts.size(); ++i) {
+            for (const auto& pair : letter_counts[i]) {
+                letter_probs[i][pair.first] = static_cast<double>(pair.second) / total_counts[i];
             }
         }
 
@@ -119,34 +145,42 @@ public:
             bool valid = true;
 
             // Ensure correct letters are in the correct positions
-            for (auto it = correct_positions.begin(); it != correct_positions.end(); ++it) {
-                if (word[it->first] != it->second) {
+            for (const auto& pos : correct_positions) {
+                if (word[pos.first] != pos.second) {
                     valid = false;
                     break;
                 }
             }
 
             // Ensure wrong letters are not present
-            for (auto it = guessed_wrong_letters.begin(); it != guessed_wrong_letters.end(); ++it) {
-                if (word.find(*it) != std::string::npos) {
+            for (const auto& letter : guessed_wrong_letters) {
+                if (word.find(letter) != std::string::npos) {
                     valid = false;
                     break;
                 }
             }
 
             // Ensure right letters in wrong positions are present but not in those positions
-            for (auto it = right_letter_wrong_positions.begin(); it != right_letter_wrong_positions.end(); ++it) {
-                if (word.find(it->first) == std::string::npos) {
+            for (const auto& pair : right_letter_wrong_positions) {
+                if (word.find(pair.first) == std::string::npos) {
                     valid = false;
                     break;
                 }
-                for (const auto& pos : it->second) {
-                    if (word[pos] == it->first) {
+                for (const auto& pos : pair.second) {
+                    if (word[pos] == pair.first) {
                         valid = false;
                         break;
                     }
                 }
                 if (!valid) break;
+            }
+
+            // Ensure the word does not contain any tried letters
+            for (const auto& letter : guessed_wrong_letters) {
+                if (word.find(letter) != std::string::npos) {
+                    valid = false;
+                    break;
+                }
             }
 
             if (valid) new_potential_words.push_back(word);
@@ -155,7 +189,6 @@ public:
         potential_words = new_potential_words;
         letter_probs = calculate_letter_frequencies(potential_words);
     }
-
 
     double calculate_word_score(const std::string& word) {
         double score = 1.0;
@@ -208,6 +241,10 @@ private:
     std::unordered_map<int, char> correct_positions;
     std::vector<std::unordered_map<char, double>> letter_probs;
     std::vector<std::string> logs;
+
+    // Cuckoo Filters
+    std::vector<CuckooFilter> filter_by_position; // One filter for each position in the word
+    CuckooFilter filter_by_letter; // Filter for managing letters
 };
 
 PYBIND11_MODULE(wordle_env, m) {
@@ -215,6 +252,10 @@ PYBIND11_MODULE(wordle_env, m) {
         .def(py::init<const std::string&, const std::vector<std::string>&, const std::vector<std::string>&>())
         .def("reset", &WordleEnv::reset)
         .def("step", &WordleEnv::step)
+        .def("get_guess_state", &WordleEnv::get_guess_state)
+        .def("calculate_letter_frequencies", &WordleEnv::calculate_letter_frequencies)
+        .def("update_potential_words", &WordleEnv::update_potential_words)
+        .def("calculate_word_score", &WordleEnv::calculate_word_score)
         .def("select_word", &WordleEnv::select_word)
         .def("get_logs", &WordleEnv::get_logs);
 }
