@@ -2,7 +2,7 @@ import random
 import torch
 import sys
 from model import DQN
-from wordle_env import WordleEnv
+import wordle_env
 
 def test_dqn(env, dqn, word_list):
     total_reward = 0
@@ -34,32 +34,38 @@ if __name__ == "__main__":
     with open('data/wordle_words.txt') as f:
         word_list = [line.strip() for line in f]
     
+    with open('data/common_words.txt') as f:
+        common_words = [line.strip() for line in f]
+    
     if target_arg == "all":
         total_rewards = 0
         rewards = []
         sample_size = int(0.4 * len(past_answers))
         sampled_answers = random.sample(past_answers, sample_size)
+        guesses = 0
 
         for target_word in sampled_answers:
-            env = WordleEnv(target_word, word_list)
+            env = wordle_env.WordleEnv(target_word, word_list, common_words)
             dqn = DQN(len(target_word), len(word_list))
             dqn.load_state_dict(torch.load("dqn_wordle.pth"))
             reward = test_dqn(env, dqn, word_list)
             rewards.append(reward)
             total_rewards += reward
+            guesses += len(env.get_logs())
         
         average_reward = total_rewards / len(past_answers)
         max_reward = max(rewards)
         min_reward = min(rewards)
         print(f"Average Test Reward: {average_reward}")
-        print(f"Max Test Reward: {max_reward}")
-        print(f"Min Test Reward: {min_reward}")
-        print(f"Total Test Rewards: {total_rewards}")
+        print(f"Average Guesses: {guesses / len(past_answers)}")
     else:
         target_word = target_arg
         
-        env = WordleEnv(target_word, word_list)
+        env = wordle_env.WordleEnv(target_word, word_list, common_words)
         dqn = DQN(len(target_word), len(word_list))
         dqn.load_state_dict(torch.load("dqn_wordle.pth"))
         reward = test_dqn(env, dqn, word_list)
         print(f"Test Reward for {target_word}: {reward}")
+        logs = env.get_logs()
+        for log in logs:
+            print(log)
