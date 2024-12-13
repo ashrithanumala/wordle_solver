@@ -19,11 +19,14 @@ public:
 
     WordleEnv(const std::string& target_word, const std::vector<std::string>& word_list, const std::vector<std::string>& common_words)
         : target_word(target_word), word_list(word_list), common_words(common_words), guesses(0) {
+        
+        // state manages the current "information" about the word
+        // 0 means nothing, 1 means wrong spot right letter, 2 means right letter & spot
         state = std::vector<int>(target_word.size(), 0);
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
 
-        // Initialize Cuckoo Filters for managing letters and positions
+        // Initialize the 2 cuckoo filters
         filter_by_position.resize(target_word.size(), CuckooFilter(10000, 4));
         filter_by_letter = CuckooFilter(10000, 4);
     }
