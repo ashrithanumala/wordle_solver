@@ -6,8 +6,18 @@ from model import DQN
 from replay_buffer import ReplayBuffer
 import wordle_env
 import sys
+import numpy as np
 
-def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsilon_start=1.0, epsilon_end=0.1, epsilon_decay=500,):
+def softmax(Q_values, temperature=1.0):
+    """Calculate the softmax of Q-values for action selection."""
+    Q_values = np.array(Q_values) / temperature
+    Q_values -= np.max(Q_values) # numerical stability
+    exp_Q = np.exp(Q_values)
+    sum_exp_Q = np.sum(exp_Q)
+    return exp_Q / sum_exp_Q
+
+
+def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsilon_start=1.0, epsilon_end=0.1, epsilon_decay=500, temperature=1.0):
     input_dim = 5
     output_dim = len(word_list)
     
@@ -29,7 +39,13 @@ def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsi
         while True:
             # Use frequency analysis and heuristics to select actions
             candidate_words = env.select_word()
-            action = word_list.index(random.choice(candidate_words))
+            Q_values = dqn(torch.FloatTensor(state).unsqueeze(0)).detach().numpy().flatten()  # Get Q-values from the DQN model
+            
+            if np.random.rand() < epsilon:
+                action = word_list.index(random.choice(candidate_words))
+            else:
+                action_probs = softmax(Q_values, temperature)
+                action = np.random.choice(range(output_dim), p=action_probs)
             
             next_state, reward, done = env.step(action)
             replay_buffer.push(state, action, reward, next_state, done)

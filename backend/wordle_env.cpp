@@ -20,16 +20,16 @@ public:
 
     WordleEnv(const std::string& target_word, const std::vector<std::string>& word_list, const std::vector<std::string>& common_words)
         : target_word(target_word), word_list(word_list), common_words(common_words), guesses(0) {
-        
-        // state manages the current "information" about the word
-        // 0 means nothing, 1 means wrong spot right letter, 2 means right letter & spot
+
+        // Initialize state and potential words
         state = std::vector<int>(target_word.size(), 0);
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
 
-        // Initialize the 2 cuckoo filters
+        // Initialize cuckoo filters for position, letter, and wrong letter tracking
         filter_by_position.resize(target_word.size(), CuckooFilter(10000, 4));
         filter_by_letter = CuckooFilter(10000, 4);
+        filter_wrong_letters = CuckooFilter(10000, 4);
     }
 
     std::vector<int> reset() {
@@ -42,10 +42,12 @@ public:
         letter_probs = calculate_letter_frequencies(potential_words);
         logs.clear();
 
+        // Reset filters
         for (auto& filter : filter_by_position) {
             filter = CuckooFilter(10000, 4);
         }
         filter_by_letter = CuckooFilter(10000, 4);
+        filter_wrong_letters = CuckooFilter(10000, 4);
 
         return state;
     }
@@ -70,6 +72,7 @@ public:
             } else {
                 reward += WRONG_PENALTY;
                 guessed_wrong_letters.insert(guessed_word[i]);
+                filter_wrong_letters.insert(std::string(1, guessed_word[i])); // Update wrong-letter filter
             }
         }
 
@@ -82,7 +85,6 @@ public:
             }
         }
         oss << "] - REWARD - " << reward;
-        
         logs.push_back(oss.str());
 
         if (guessed_word == target_word || guesses >= MAX_GUESSES) {
@@ -249,6 +251,7 @@ private:
     // Cuckoo Filters
     std::vector<CuckooFilter> filter_by_position; // One filter for each position in the word
     CuckooFilter filter_by_letter; // Filter for managing letters
+    CuckooFilter filter_wrong_letters;
 };
 
 PYBIND11_MODULE(wordle_env, m) {
