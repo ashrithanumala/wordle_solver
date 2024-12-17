@@ -8,6 +8,7 @@
 #include <sstream>
 #include <algorithm>
 #include <iostream>
+#include <cmath>
 
 namespace py = pybind11;
 
@@ -16,6 +17,7 @@ public:
     const int PARTIAL_REWARD = 6;
     const int RIGHT_REWARD = 10;
     const int WRONG_PENALTY = -3;
+
     const int MAX_GUESSES = 6;
 
     WordleEnv(const std::string& target_word, const std::vector<std::string>& word_list, const std::vector<std::string>& common_words)
@@ -58,6 +60,7 @@ public:
         int reward = 0;
         bool done = false;
         std::vector<int> new_state = get_guess_state(guessed_word);
+        // double turn_weight = 1.0 - (guesses - 1) * 0.1;
 
         // Update filters based on guessed word
         for (size_t i = 0; i < target_word.size(); ++i) {
@@ -72,9 +75,15 @@ public:
             } else {
                 reward += WRONG_PENALTY;
                 guessed_wrong_letters.insert(guessed_word[i]);
-                filter_wrong_letters.insert(std::string(1, guessed_word[i])); // Update wrong-letter filter
+                filter_wrong_letters.insert(std::string(1, guessed_word[i]));
             }
         }
+
+        // reward *= turn_weight;
+
+        // if (guesses == MAX_GUESSES && guessed_word != target_word) {
+        //     reward -= 800; 
+        // }
 
         std::ostringstream oss;
         oss << "GUESS: \"" << guessed_word << "\" - STATE - [";
