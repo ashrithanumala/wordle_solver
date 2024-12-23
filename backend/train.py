@@ -6,18 +6,8 @@ from model import DQN
 from replay_buffer import ReplayBuffer
 import wordle_env
 import sys
-import numpy as np
 
-def softmax(Q_values, temperature=1.0):
-    """Calculate the softmax of Q-values for action selection."""
-    Q_values = np.array(Q_values) / temperature
-    Q_values -= np.max(Q_values) # numerical stability
-    exp_Q = np.exp(Q_values)
-    sum_exp_Q = np.sum(exp_Q)
-    return exp_Q / sum_exp_Q
-
-
-def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsilon_start=1.0, epsilon_end=0.1, epsilon_decay=500, temperature=1.0):
+def train_dqn(word_list, past_answers, common_words, num_episodes=2000, batch_size=64, gamma=0.99):
     input_dim = 5
     output_dim = len(word_list)
     
@@ -29,23 +19,17 @@ def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsi
     optimizer = optim.Adam(dqn.parameters())
     replay_buffer = ReplayBuffer(10000)
     
-    epsilon = epsilon_start
-    epsilon_decay_factor = (epsilon_start - epsilon_end) / epsilon_decay
-    
     for episode in range(num_episodes):
+        target_word = random.choice(past_answers)
+        env = wordle_env.WordleEnv(target_word, word_list, common_words)
+        
         state = env.reset()
         total_reward = 0
         
         while True:
             # Use frequency analysis and heuristics to select actions
             candidate_words = env.select_word()
-            Q_values = dqn(torch.FloatTensor(state).unsqueeze(0)).detach().numpy().flatten()  # Get Q-values from the DQN model
-            
-            if np.random.rand() < epsilon:
-                action = word_list.index(random.choice(candidate_words))
-            else:
-                action_probs = softmax(Q_values, temperature)
-                action = np.random.choice(range(output_dim), p=action_probs)
+            action = word_list.index(candidate_words[0])
             
             next_state, reward, done = env.step(action)
             replay_buffer.push(state, action, reward, next_state, done)
@@ -73,26 +57,30 @@ def train_dqn(env, word_list, num_episodes=2000, batch_size=64, gamma=0.99, epsi
                 loss.backward()
                 optimizer.step()
         
-        epsilon = max(epsilon_end, epsilon - epsilon_decay_factor)
-        
         if episode % 100 == 0:
             target_dqn.load_state_dict(dqn.state_dict())
             print(f"Episode {episode}, Total Reward: {total_reward}")
     
     return dqn
 
-if __name__ == "__main__":
-
-    with open('data/past_wordle_answers.txt') as f:
+def main():
+    with open('data/past_wordle_answers.txt', 'r') as f:
         past_answers = [line.strip() for line in f]
     
-    with open('data/wordle_words.txt') as f:
+    with open('data/wordle_words.txt', 'r') as f:
         word_list = [line.strip() for line in f]
-
-    with open('data/common_words.txt') as f:
+    
+    with open('data/common_words.txt', 'r') as f:
         common_words = [line.strip() for line in f]
     
-    target_word = random.choice(past_answers)
-    env = wordle_env.WordleEnv(target_word, word_list, common_words)
-    dqn = train_dqn(env, word_list)
+    dqn = train_dqn(
+        word_list=word_list, 
+        past_answers=past_answers, 
+        common_words=common_words
+    )
+    
     torch.save(dqn.state_dict(), "dqn_wordle.pth")
+    print("Training complete. Model saved to dqn_wordle.pth")
+
+if __name__ == "__main__":
+    main()

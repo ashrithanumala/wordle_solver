@@ -32,6 +32,7 @@ public:
         filter_by_position.resize(target_word.size(), CuckooFilter(10000, 4));
         filter_by_letter = CuckooFilter(10000, 4);
         filter_wrong_letters = CuckooFilter(10000, 4);
+
     }
 
     std::vector<int> reset() {
@@ -78,12 +79,6 @@ public:
                 filter_wrong_letters.insert(std::string(1, guessed_word[i]));
             }
         }
-
-        // reward *= turn_weight;
-
-        // if (guesses == MAX_GUESSES && guessed_word != target_word) {
-        //     reward -= 800; 
-        // }
 
         std::ostringstream oss;
         oss << "GUESS: \"" << guessed_word << "\" - STATE - [";
@@ -211,7 +206,7 @@ public:
             score *= letter_probs[i][word[i]];
         }
         if (std::find(common_words.begin(), common_words.end(), word) != common_words.end()) {
-            score *= 1.5; // Boost score for common words
+            score *= 1.8; // Boost score for common words
         }
         return score;
     }
@@ -243,6 +238,7 @@ public:
     const std::vector<std::string>& get_logs() const {
         return logs;
     }
+
 
 private:
     std::string target_word;
