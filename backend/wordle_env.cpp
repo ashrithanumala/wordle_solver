@@ -206,7 +206,7 @@ public:
             score *= letter_probs[i][word[i]];
         }
         if (std::find(common_words.begin(), common_words.end(), word) != common_words.end()) {
-            score *= 1.8; // Boost score for common words
+            score *= 5; // Boost score for common words
         }
         return score;
     }
@@ -239,6 +239,51 @@ public:
         return logs;
     }
 
+    std::string get_target_word() const {
+        return target_word;
+    }
+
+    std::vector<std::pair<std::string, double>> select_word_with_probabilities() {
+        update_potential_words();
+        std::vector<std::pair<std::string, double>> word_scores;
+
+        std::vector<std::string> starter_words = {"crane", "slate", "trace", "crate", "caret"};
+        
+        if (guesses == 0) {
+            for (const auto& word : word_list) {
+                double score = calculate_word_score(word);
+                
+                // Use std::find with the vector
+                if (std::find(starter_words.begin(), starter_words.end(), word) != starter_words.end()) {
+                    score *= 50;
+                }
+
+                word_scores.emplace_back(word, score);
+            }
+        } else {
+            for (const auto& word : potential_words) {
+                double score = calculate_word_score(word);
+                double pool_size_factor = 1.0 / std::sqrt(potential_words.size());
+                score *= pool_size_factor;
+                
+                word_scores.emplace_back(word, score);
+            }
+        }
+
+        auto word_probs = apply_softmax(word_scores);
+
+        std::sort(word_probs.begin(), word_probs.end(),
+                [](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) {
+                    return a.second > b.second;
+                });
+
+        if (word_probs.size() > 10) {
+            word_probs.resize(10);
+        }
+
+        return word_probs;
+    }
+
 
 private:
     std::string target_word;
@@ -256,7 +301,31 @@ private:
     // Cuckoo Filters
     std::vector<CuckooFilter> filter_by_position; // One filter for each position in the word
     CuckooFilter filter_by_letter; // Filter for managing letters
-    CuckooFilter filter_wrong_letters;
+    CuckooFilter filter_wrong_letters; // Filter for managing wrong letters
+
+    std::vector<std::pair<std::string, double>> apply_softmax(const std::vector<std::pair<std::string, double>>& scores) {
+        double max_score = -std::numeric_limits<double>::infinity();
+        for (const auto& pair : scores) {
+            max_score = std::max(max_score, pair.second);
+        }
+
+        double sum_exp = 0.0;
+        std::vector<std::pair<std::string, double>> probs;
+        probs.reserve(scores.size());
+
+        for (const auto& pair : scores) {
+            double exp_score = std::exp(pair.second - max_score);
+            sum_exp += exp_score;
+            probs.emplace_back(pair.first, exp_score);
+        }
+
+        // Normalize probabilities
+        for (auto& pair : probs) {
+            pair.second /= sum_exp;
+        }
+
+        return probs;
+    }
 };
 
 PYBIND11_MODULE(wordle_env, m) {
@@ -269,5 +338,7 @@ PYBIND11_MODULE(wordle_env, m) {
         .def("update_potential_words", &WordleEnv::update_potential_words)
         .def("calculate_word_score", &WordleEnv::calculate_word_score)
         .def("select_word", &WordleEnv::select_word)
+        .def("select_word_with_probabilities", &WordleEnv::select_word_with_probabilities)
+        .def("get_target_word", &WordleEnv::get_target_word)
         .def("get_logs", &WordleEnv::get_logs);
 }

@@ -76,7 +76,7 @@ const WordleGame: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeydown);
     };
-  }, [currentRow, currentTile, board]); // Add dependencies for the useEffect
+  }, [currentRow, currentTile, board]);
 
   const handleKeyClick = (key: string) => {
     if (currentRow >= 6) return;
@@ -91,7 +91,6 @@ const WordleGame: React.FC = () => {
       }
     } else if (key === 'ENTER') {
       if (currentTile === 5) {
-        // For demo purposes, just mark some tiles as correct/present/absent
         newBoard[currentRow].forEach((tile, index) => {
           if (index === 0) tile.status = 'correct';
           else if (index === 1) tile.status = 'present';
@@ -117,12 +116,12 @@ const WordleGame: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center bg-white min-h-screen p-4">
-      {/* Header */}
+      {/* Title */}
       <header className="w-full max-w-xl border-b border-gray-200 pb-2 mb-8">
-        <h1 className="text-4xl font-bold text-center">Wordle</h1>
+        <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
       </header>
 
-      {/* Game Board */}
+      {/* Word Board */}
       <div className="grid grid-rows-6 gap-1 mb-8">
         {board.map((row, rowIndex) => (
           <div key={rowIndex} className="grid grid-cols-5 gap-1">
@@ -137,7 +136,7 @@ const WordleGame: React.FC = () => {
         ))}
       </div>
 
-      {/* Keyboard */}
+      {/* Keys */}
       <div className="w-full max-w-xl">
         {keyboardRows.map((row, rowIndex) => (
           <div key={rowIndex} className="flex justify-center gap-1.5 mb-1.5">
