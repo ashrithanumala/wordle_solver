@@ -101,29 +101,35 @@ public:
 
     std::vector<int> get_guess_state(const std::string& word) {
         std::vector<int> state(target_word.size(), 0);
-        std::unordered_map<char, int> letter_count;
+        std::unordered_map<char, int> target_letter_counts;
+        std::unordered_map<char, int> guess_letter_counts;
 
-        // Count occurrences of each letter in the guessed word
-        for (const auto& ch : word) {
-            letter_count[ch]++;
+        for (char c : target_word) {
+            target_letter_counts[c]++;
+        }
+        for (char c : word) {
+            guess_letter_counts[c]++;
         }
 
         for (size_t i = 0; i < word.size(); ++i) {
             char guessed_char = word[i];
             if (target_word[i] == guessed_char) {
                 state[i] = 2; // Correct letter in the correct position
-                letter_count[guessed_char]--; // Decrement count
-            } else if (target_word.find(guessed_char) != std::string::npos) {
-                if (letter_count[guessed_char] > 0) {
-                    state[i] = 1; // Correct letter in the wrong position
-                } else {
-                    state[i] = -1; // Incorrect letter (but letter is in the target word)
-                }
-                letter_count[guessed_char]--; // Decrement count
-            } else {
+                target_letter_counts[guessed_char]--;
+                guess_letter_counts[guessed_char]--;
+            }
+        }
+        for (size_t i = 0; i < word.size(); ++i) {
+            char guessed_char = word[i];
+            if (state[i] == 0 && target_letter_counts[guessed_char] > 0) {
+                state[i] = 1; // Correct letter in the wrong position
+                target_letter_counts[guessed_char]--;
+                guess_letter_counts[guessed_char]--;
+            } else if (state[i] == 0) {
                 state[i] = -1; // Incorrect letter
             }
         }
+
         return state;
     }
 
