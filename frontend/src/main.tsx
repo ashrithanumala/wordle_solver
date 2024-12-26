@@ -242,7 +242,7 @@ const WordleGame: React.FC = () => {
         if (!gameActive || gameOver) return;
         
         if (event.key === 'Enter') {
-            event.preventDefault(); // Prevent form submission
+            event.preventDefault(); // manually do form submission
             handleKeyClick('ENTER', event);
         } else if (event.key === 'Backspace') {
             handleKeyClick('←', event);
@@ -263,7 +263,7 @@ const WordleGame: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-white relative">
-      {/* Error Alert - keep this the same */}
+      {/* Error Alert */}
       {error && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-96">
           <Alert variant="destructive">
@@ -280,7 +280,7 @@ const WordleGame: React.FC = () => {
         </div>
       )}
   
-      {/* Left Half - Game Area */}
+      {/* Left Half - Grid */}
       <div className="w-1/2 flex flex-col items-center p-8">
         <header className="w-full max-w-xl pb-2 mb-8">
           <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
@@ -338,7 +338,6 @@ const WordleGame: React.FC = () => {
       {/* Right Half - Suggestions */}
       <div className="w-1/2 p-8 border-l border-gray-200 flex flex-col">
         <h2 className="text-2xl font-bold mb-6">Suggested Words</h2>
-        {suggestions.length < 20 ? (
           <div className="flex-1 min-h-[600px]">
             <ResponsiveContainer width="95%" height="100%">
               <PieChart>
@@ -372,16 +371,6 @@ const WordleGame: React.FC = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {suggestions.map(({ word, probability }, index) => (
-              <div key={index} className="flex justify-between">
-                <span className="font-mono uppercase">{word}</span>
-                <span className="text-gray-600">{(probability * 100).toFixed(2)}%</span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
