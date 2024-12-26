@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.triangle {
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid blue;
+    position: absolute;
+    left: -20px; /* Position the triangle to the left of the box */
+    top: 0;
+    transition: top 0.3s ease-in-out;
+  }
+  
+  .board-container {
+    position: relative;
+  }
