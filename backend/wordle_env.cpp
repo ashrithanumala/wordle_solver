@@ -288,8 +288,8 @@ public:
                     return a.second > b.second;
                 });
 
-        if (word_probs.size() > 10) {
-            word_probs.resize(10);
+        if (word_probs.size() > 20) {
+            word_probs.resize(20);
         }
 
         return word_probs;

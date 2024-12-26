@@ -2,6 +2,8 @@ import {StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { Alert } from './components/Alert'
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Card, CardHeader, CardTitle, CardContent } from './components/Card';
 
 type TileStatus = 'empty' | 'filled' | 'correct' | 'present' | 'absent';
 
@@ -13,6 +15,15 @@ interface TileProps {
 interface Suggestion {
   word: string;
   probability: number;
+}
+
+interface Suggestion {
+  word: string;
+  probability: number;
+}
+
+interface SuggestionsDashboardProps {
+  suggestions?: Suggestion[];
 }
 
 const Tile: React.FC<TileProps & { isCurrent?: boolean }> = ({ letter, status, isCurrent }) => {
@@ -252,7 +263,7 @@ const WordleGame: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-white relative">
-      {/* Error Alert */}
+      {/* Error Alert - keep this the same */}
       {error && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-96">
           <Alert variant="destructive">
@@ -267,23 +278,20 @@ const WordleGame: React.FC = () => {
             </div>
           </Alert>
         </div>
-    )}
+      )}
   
-      {/* Start Game Sidebar */}
-      <div className="w-64 p-4 border-r border-gray-200">
+      {/* Left Half - Game Area */}
+      <div className="w-1/2 flex flex-col items-center p-8">
+        <header className="w-full max-w-xl pb-2 mb-8">
+          <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
+        </header>
+  
         <button
           onClick={startNewGame}
-          className="w-full py-2 px-4 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+          className="w-64 py-3 px-4 bg-black text-white rounded hover:bg-gray-800 transition-colors mb-12"
         >
           Start Game
         </button>
-      </div>
-  
-      {/* Main Game Area */}
-      <div className="flex-1 flex flex-col items-center p-4">
-        <header className="w-full max-w-xl border-b border-gray-200 pb-2 mb-8">
-          <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
-        </header>
   
         {/* Game Board */}
         <div className="grid grid-rows-6 gap-1 mb-8">
@@ -327,17 +335,53 @@ const WordleGame: React.FC = () => {
         )}
       </div>
   
-      {/* Suggestions Sidebar */}
-      <div className="w-80 p-4 border-l border-gray-200">
-        <h2 className="text-lg font-bold mb-4">Suggested Words</h2>
-        <div className="space-y-2">
-          {suggestions.map(({ word, probability }, index) => (
-            <div key={index} className="flex justify-between">
-              <span className="font-mono uppercase">{word}</span>
-              <span className="text-gray-600">{(probability * 100).toFixed(2)}%</span>
-            </div>
-          ))}
-        </div>
+      {/* Right Half - Suggestions */}
+      <div className="w-1/2 p-8 border-l border-gray-200 flex flex-col">
+        <h2 className="text-2xl font-bold mb-6">Suggested Words</h2>
+        {suggestions.length < 20 ? (
+          <div className="flex-1 min-h-[600px]">
+            <ResponsiveContainer width="95%" height="100%">
+              <PieChart>
+                <Pie
+                  data={suggestions.map(({ word, probability }) => ({
+                    name: word.toUpperCase(),
+                    value: probability * 100
+                  }))}
+                  innerRadius="33%"
+                  outerRadius="60%"
+                  paddingAngle={2}
+                  dataKey="value"
+                  nameKey="name"
+                  label={({ name, value }) => `${name} (${value.toFixed(1)}%)`}
+                  labelLine={false}
+                >
+                  {suggestions.map((_, index) => (
+                    <Cell 
+                      key={`cell-${index}`}
+                      fill={[
+                        '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8',
+                        '#82CA9D', '#F06292', '#BA68C8', '#4DD0E1', '#81C784'
+                      ][index % 10]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value) => `${(value as number).toFixed(2)}%`}
+                />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {suggestions.map(({ word, probability }, index) => (
+              <div key={index} className="flex justify-between">
+                <span className="font-mono uppercase">{word}</span>
+                <span className="text-gray-600">{(probability * 100).toFixed(2)}%</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
