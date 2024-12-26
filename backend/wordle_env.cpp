@@ -243,6 +243,12 @@ public:
         return target_word;
     }
 
+    int get_guesses() const {
+        return guesses;
+    }
+
+    
+
     std::vector<std::pair<std::string, double>> select_word_with_probabilities() {
         update_potential_words();
         std::vector<std::pair<std::string, double>> word_scores;
@@ -340,5 +346,7 @@ PYBIND11_MODULE(wordle_env, m) {
         .def("select_word", &WordleEnv::select_word)
         .def("select_word_with_probabilities", &WordleEnv::select_word_with_probabilities)
         .def("get_target_word", &WordleEnv::get_target_word)
-        .def("get_logs", &WordleEnv::get_logs);
+        .def("get_logs", &WordleEnv::get_logs)
+        .def("get_guesses", &WordleEnv::get_guesses);
+
 }

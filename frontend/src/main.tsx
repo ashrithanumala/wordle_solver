@@ -1,4 +1,4 @@
-import { StrictMode, useState, useEffect } from 'react'
+import {StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
@@ -14,8 +14,8 @@ interface Suggestion {
   probability: number;
 }
 
-const Tile: React.FC<TileProps> = ({ letter, status }) => {
-  const baseStyles = "w-14 h-14 border-2 flex items-center justify-center text-2xl font-bold uppercase transition-colors duration-500";
+const Tile: React.FC<TileProps & { isCurrent?: boolean }> = ({ letter, status, isCurrent }) => {
+  const baseStyles = "w-14 h-14 border-2 flex items-center justify-center text-2xl font-bold uppercase transition-colors duration-500 relative";
   
   const statusStyles = {
     empty: "border-gray-300",
@@ -27,10 +27,16 @@ const Tile: React.FC<TileProps> = ({ letter, status }) => {
 
   return (
     <div className={`${baseStyles} ${statusStyles[status]}`}>
+      {isCurrent && (
+        <div className="absolute left-0 top-0 transform -translate-x-3">
+          <span className="text-blue-500 text-2xl">➔</span>
+        </div>
+      )}
       {letter}
     </div>
   );
 };
+
 
 const KeyboardKey: React.FC<{ 
   letter: string; 
@@ -73,9 +79,19 @@ const WordleGame: React.FC = () => {
 
   const startNewGame = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/start-game', {
+      const response = await fetch('http://localhost:5001/api/start-game', {
         method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.status === 'success') {
@@ -94,42 +110,42 @@ const WordleGame: React.FC = () => {
     }
   };
 
-  const getStatusFromState = (state: number): TileStatus => {
-    switch (state) {
-      case 2: return 'correct';
-      case 1: return 'present';
-      case -1: return 'absent';
-      default: return 'empty';
-    }
-  };
-
   const makeGuess = async (word: string) => {
     try {
-      const response = await fetch('http://localhost:5000/api/make-guess', {
+      const response = await fetch('http://localhost:5001/api/make-guess', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ guess: word }),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (response.ok) {
         const newBoard = [...board];
         for (let i = 0; i < 5; i++) {
-          newBoard[currentRow][i].status = getStatusFromState(data.state[i]);
+          const position_state = data.state[i];
+          let status : TileStatus;
+
+          if (position_state === 2) {
+            status = 'correct';
+          } else if (position_state === 1) {
+            status = 'present';
+          } else {
+            status = 'absent';
+          }
+          newBoard[currentRow][i].status = status;
         }
+
         setBoard(newBoard);
         setSuggestions(data.suggestions);
-        
-        if (data.done) {
-          setGameOver(true);
-          setTargetWord(data.target_word);
-          setGameActive(false);
-        } else {
-          setCurrentRow(currentRow + 1);
-          setCurrentTile(0);
-        }
       }
     } catch (error) {
       console.error('Error making guess:', error);
@@ -151,6 +167,8 @@ const WordleGame: React.FC = () => {
       if (currentTile === 5) {
         const word = newBoard[currentRow].map(tile => tile.letter).join('').toLowerCase();
         makeGuess(word);
+        setCurrentRow(currentRow + 1);
+        setCurrentTile(0);
       }
     } else if (currentTile < 5) {
       newBoard[currentRow][currentTile].letter = key;
@@ -186,7 +204,6 @@ const WordleGame: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-white">
-      {/* Left panel with Start button */}
       <div className="w-64 p-4 border-r border-gray-200">
         <button
           onClick={startNewGame}
@@ -196,7 +213,6 @@ const WordleGame: React.FC = () => {
         </button>
       </div>
 
-      {/* Main game board */}
       <div className="flex-1 flex flex-col items-center p-4">
         <header className="w-full max-w-xl border-b border-gray-200 pb-2 mb-8">
           <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
@@ -210,11 +226,13 @@ const WordleGame: React.FC = () => {
                   key={`${rowIndex}-${tileIndex}`}
                   letter={tile.letter}
                   status={tile.status}
+                  isCurrent={rowIndex === currentRow && tileIndex === currentTile}
                 />
               ))}
             </div>
           ))}
         </div>
+
 
         <div className="w-full max-w-xl">
           {keyboardRows.map((row, rowIndex) => (
@@ -240,7 +258,6 @@ const WordleGame: React.FC = () => {
         )}
       </div>
 
-      {/* Right panel with suggestions */}
       <div className="w-80 p-4 border-l border-gray-200">
         <h2 className="text-lg font-bold mb-4">Suggested Words</h2>
         <div className="space-y-2">
@@ -268,4 +285,4 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>
-);
+)
