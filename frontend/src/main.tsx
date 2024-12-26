@@ -1,6 +1,7 @@
 import {StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import { Alert } from './components/Alert'
 
 type TileStatus = 'empty' | 'filled' | 'correct' | 'present' | 'absent';
 
@@ -76,6 +77,18 @@ const WordleGame: React.FC = () => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [gameOver, setGameOver] = useState(false);
   const [targetWord, setTargetWord] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [gameSession, setGameSession] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   const startNewGame = async () => {
     try {
@@ -104,6 +117,7 @@ const WordleGame: React.FC = () => {
         setGameOver(false);
         setTargetWord('');
         setSuggestions(data.suggestions);
+        setGameSession(data.session_id);
       }
     } catch (error) {
       console.error('Error starting game:', error);
@@ -111,6 +125,9 @@ const WordleGame: React.FC = () => {
   };
 
   const makeGuess = async (word: string) => {
+    if (isSubmitting) return false;
+    setIsSubmitting(true);
+    
     try {
       const response = await fetch('http://localhost:5001/api/make-guess', {
         method: 'POST',
@@ -119,82 +136,113 @@ const WordleGame: React.FC = () => {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ guess: word }),
+        body: JSON.stringify({ 
+          guess: word,
+          session_id: gameSession
+        }),
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
       
       const data = await response.json();
       
-      if (response.ok) {
-        const newBoard = [...board];
-        for (let i = 0; i < 5; i++) {
-          const position_state = data.state[i];
-          let status : TileStatus;
-
-          if (position_state === 2) {
-            status = 'correct';
-          } else if (position_state === 1) {
-            status = 'present';
-          } else {
-            status = 'absent';
-          }
-          newBoard[currentRow][i].status = status;
+      if (!response.ok) {
+        if (data.error === 'Invalid word') {
+          setError('Not a valid word! Try again.');
+          return false;
+        } else if (data.error === 'Invalid session') {
+          setError('Game session expired. Please start a new game.');
+          setGameActive(false);
+          return false;
+        } else {
+          setError(data.error || 'An error occurred. Please try again.');
+          return false;
         }
-
-        setBoard(newBoard);
-        setSuggestions(data.suggestions);
       }
+      
+      const newBoard = [...board];
+      for (let i = 0; i < 5; i++) {
+        const position_state = data.state[i];
+        let status: TileStatus = 'absent';
+
+        if (position_state === 2) {
+          status = 'correct';
+        } else if (position_state === 1) {
+          status = 'present';
+        }
+        newBoard[currentRow][i].status = status;
+      }
+
+      setBoard(newBoard);
+      setSuggestions(data.suggestions);
+
+      if (data.done) {
+        setGameOver(true);
+        setGameActive(false);
+        if (data.target_word) {
+          setTargetWord(data.target_word);
+        }
+      }
+      
+      return true;
     } catch (error) {
       console.error('Error making guess:', error);
+      setError('Network error. Please try again.');
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleKeyClick = (key: string) => {
+  const handleKeyClick = async (key: string, event?: KeyboardEvent) => {
+    // for some reason this makes the start_game issue go away
+    if (event) {
+        event.preventDefault();
+    }
+    
     if (!gameActive || gameOver) return;
     
     const newBoard = [...board];
     
     if (key === '←' || key === 'Backspace') {
-      if (currentTile > 0) {
-        newBoard[currentRow][currentTile - 1].letter = '';
-        newBoard[currentRow][currentTile - 1].status = 'empty';
-        setCurrentTile(currentTile - 1);
-      }
+        if (currentTile > 0) {
+            newBoard[currentRow][currentTile - 1].letter = '';
+            newBoard[currentRow][currentTile - 1].status = 'empty';
+            setCurrentTile(currentTile - 1);
+            setBoard(newBoard);
+        }
     } else if (key === 'ENTER') {
-      if (currentTile === 5) {
-        const word = newBoard[currentRow].map(tile => tile.letter).join('').toLowerCase();
-        makeGuess(word);
-        setCurrentRow(currentRow + 1);
-        setCurrentTile(0);
-      }
+        if (currentTile === 5) {
+            const word = newBoard[currentRow].map(tile => tile.letter).join('').toLowerCase();
+            const successful_guess = await makeGuess(word);
+            if (successful_guess) {
+                setCurrentRow(currentRow + 1);
+                setCurrentTile(0);
+            }
+        }
     } else if (currentTile < 5) {
-      newBoard[currentRow][currentTile].letter = key;
-      newBoard[currentRow][currentTile].status = 'filled';
-      setCurrentTile(currentTile + 1);
+        newBoard[currentRow][currentTile].letter = key;
+        newBoard[currentRow][currentTile].status = 'filled';
+        setCurrentTile(currentTile + 1);
+        setBoard(newBoard);
     }
-
-    setBoard(newBoard);
   };
 
   useEffect(() => {
     const handleKeydown = (event: KeyboardEvent) => {
-      if (!gameActive || gameOver) return;
-      
-      if (event.key === 'Enter') {
-        handleKeyClick('ENTER');
-      } else if (event.key === 'Backspace') {
-        handleKeyClick('←');
-      } else if (/^[a-zA-Z]$/.test(event.key)) {
-        handleKeyClick(event.key.toUpperCase());
-      }
+        if (!gameActive || gameOver) return;
+        
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent form submission
+            handleKeyClick('ENTER', event);
+        } else if (event.key === 'Backspace') {
+            handleKeyClick('←', event);
+        } else if (/^[a-zA-Z]$/.test(event.key)) {
+            handleKeyClick(event.key.toUpperCase(), event);
+        }
     };
 
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
-  }, [currentRow, currentTile, board, gameActive, gameOver]);
+}, [currentRow, currentTile, board, gameActive, gameOver, handleKeyClick]);
 
   const keyboardRows = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -203,7 +251,25 @@ const WordleGame: React.FC = () => {
   ];
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-white relative">
+      {/* Error Alert */}
+      {error && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-96">
+          <Alert variant="destructive">
+            <div className="flex items-center justify-between">
+              <span>{error}</span>
+              <button 
+                onClick={() => setError(null)}
+                className="ml-2 text-sm hover:opacity-80"
+              >
+                ✕
+              </button>
+            </div>
+          </Alert>
+        </div>
+    )}
+  
+      {/* Start Game Sidebar */}
       <div className="w-64 p-4 border-r border-gray-200">
         <button
           onClick={startNewGame}
@@ -212,12 +278,14 @@ const WordleGame: React.FC = () => {
           Start Game
         </button>
       </div>
-
+  
+      {/* Main Game Area */}
       <div className="flex-1 flex flex-col items-center p-4">
         <header className="w-full max-w-xl border-b border-gray-200 pb-2 mb-8">
           <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
         </header>
-
+  
+        {/* Game Board */}
         <div className="grid grid-rows-6 gap-1 mb-8">
           {board.map((row, rowIndex) => (
             <div key={rowIndex} className="grid grid-cols-5 gap-1">
@@ -232,8 +300,8 @@ const WordleGame: React.FC = () => {
             </div>
           ))}
         </div>
-
-
+  
+        {/* Keyboard */}
         <div className="w-full max-w-xl">
           {keyboardRows.map((row, rowIndex) => (
             <div key={rowIndex} className="flex justify-center gap-1.5 mb-1.5">
@@ -248,7 +316,8 @@ const WordleGame: React.FC = () => {
             </div>
           ))}
         </div>
-
+  
+        {/* Game Over Message */}
         {gameOver && (
           <div className="mt-4 text-center">
             <p className="text-xl font-bold">
@@ -257,7 +326,8 @@ const WordleGame: React.FC = () => {
           </div>
         )}
       </div>
-
+  
+      {/* Suggestions Sidebar */}
       <div className="w-80 p-4 border-l border-gray-200">
         <h2 className="text-lg font-bold mb-4">Suggested Words</h2>
         <div className="space-y-2">

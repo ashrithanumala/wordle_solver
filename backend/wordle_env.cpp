@@ -259,7 +259,6 @@ public:
             for (const auto& word : word_list) {
                 double score = calculate_word_score(word);
                 
-                // Use std::find with the vector
                 if (std::find(starter_words.begin(), starter_words.end(), word) != starter_words.end()) {
                     score *= 50;
                 }
