@@ -2,7 +2,6 @@ import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 
-// Types and Interfaces
 type TileStatus = 'empty' | 'filled' | 'correct' | 'present' | 'absent';
 
 interface TileProps {
@@ -10,7 +9,11 @@ interface TileProps {
   status: TileStatus;
 }
 
-// Components
+interface Suggestion {
+  word: string;
+  probability: number;
+}
+
 const Tile: React.FC<TileProps> = ({ letter, status }) => {
   const baseStyles = "w-14 h-14 border-2 flex items-center justify-center text-2xl font-bold uppercase transition-colors duration-500";
   
@@ -63,28 +66,79 @@ const WordleGame: React.FC = () => {
   );
   const [currentRow, setCurrentRow] = useState(0);
   const [currentTile, setCurrentTile] = useState(0);
+  const [gameActive, setGameActive] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [gameOver, setGameOver] = useState(false);
+  const [targetWord, setTargetWord] = useState('');
 
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        handleKeyClick('ENTER');
-      } else if (event.key === 'Backspace') {
-        handleKeyClick('←');
-      } else if (/^[a-zA-Z]$/.test(event.key)) {
-        handleKeyClick(event.key.toUpperCase());
+  const startNewGame = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/start-game', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      
+      if (data.status === 'success') {
+        setBoard(Array(6).fill(null).map(() => 
+          Array(5).fill(null).map(() => ({ letter: '', status: 'empty' }))
+        ));
+        setCurrentRow(0);
+        setCurrentTile(0);
+        setGameActive(true);
+        setGameOver(false);
+        setTargetWord('');
+        setSuggestions(data.suggestions);
       }
-    };
+    } catch (error) {
+      console.error('Error starting game:', error);
+    }
+  };
 
-    window.addEventListener('keydown', handleKeydown);
-    
-    return () => {
-      window.removeEventListener('keydown', handleKeydown);
-    };
-  }, [currentRow, currentTile, board]);
+  const getStatusFromState = (state: number): TileStatus => {
+    switch (state) {
+      case 2: return 'correct';
+      case 1: return 'present';
+      case -1: return 'absent';
+      default: return 'empty';
+    }
+  };
+
+  const makeGuess = async (word: string) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/make-guess', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ guess: word }),
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        const newBoard = [...board];
+        for (let i = 0; i < 5; i++) {
+          newBoard[currentRow][i].status = getStatusFromState(data.state[i]);
+        }
+        setBoard(newBoard);
+        setSuggestions(data.suggestions);
+        
+        if (data.done) {
+          setGameOver(true);
+          setTargetWord(data.target_word);
+          setGameActive(false);
+        } else {
+          setCurrentRow(currentRow + 1);
+          setCurrentTile(0);
+        }
+      }
+    } catch (error) {
+      console.error('Error making guess:', error);
+    }
+  };
 
   const handleKeyClick = (key: string) => {
-    if (currentRow >= 6) return;
-
+    if (!gameActive || gameOver) return;
+    
     const newBoard = [...board];
     
     if (key === '←' || key === 'Backspace') {
@@ -95,13 +149,8 @@ const WordleGame: React.FC = () => {
       }
     } else if (key === 'ENTER') {
       if (currentTile === 5) {
-        newBoard[currentRow].forEach((tile, index) => {
-          if (index === 0) tile.status = 'correct';
-          else if (index === 1) tile.status = 'present';
-          else tile.status = 'absent';
-        });
-        setCurrentRow(currentRow + 1);
-        setCurrentTile(0);
+        const word = newBoard[currentRow].map(tile => tile.letter).join('').toLowerCase();
+        makeGuess(word);
       }
     } else if (currentTile < 5) {
       newBoard[currentRow][currentTile].letter = key;
@@ -112,6 +161,23 @@ const WordleGame: React.FC = () => {
     setBoard(newBoard);
   };
 
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (!gameActive || gameOver) return;
+      
+      if (event.key === 'Enter') {
+        handleKeyClick('ENTER');
+      } else if (event.key === 'Backspace') {
+        handleKeyClick('←');
+      } else if (/^[a-zA-Z]$/.test(event.key)) {
+        handleKeyClick(event.key.toUpperCase());
+      }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [currentRow, currentTile, board, gameActive, gameOver]);
+
   const keyboardRows = [
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
     ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
@@ -119,44 +185,77 @@ const WordleGame: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center bg-white min-h-screen p-4">
-      <header className="w-full max-w-xl border-b border-gray-200 pb-2 mb-8">
-        <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
-      </header>
-
-      <div className="grid grid-rows-6 gap-1 mb-8">
-        {board.map((row, rowIndex) => (
-          <div key={rowIndex} className="grid grid-cols-5 gap-1">
-            {row.map((tile, tileIndex) => (
-              <Tile
-                key={`${rowIndex}-${tileIndex}`}
-                letter={tile.letter}
-                status={tile.status}
-              />
-            ))}
-          </div>
-        ))}
+    <div className="flex min-h-screen bg-white">
+      {/* Left panel with Start button */}
+      <div className="w-64 p-4 border-r border-gray-200">
+        <button
+          onClick={startNewGame}
+          className="w-full py-2 px-4 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+        >
+          Start Game
+        </button>
       </div>
 
-      <div className="w-full max-w-xl">
-        {keyboardRows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-1.5 mb-1.5">
-            {row.map((key) => (
-              <KeyboardKey
-                key={key}
-                letter={key}
-                onClick={handleKeyClick}
-                isWide={key.length > 1}
-              />
-            ))}
+      {/* Main game board */}
+      <div className="flex-1 flex flex-col items-center p-4">
+        <header className="w-full max-w-xl border-b border-gray-200 pb-2 mb-8">
+          <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
+        </header>
+
+        <div className="grid grid-rows-6 gap-1 mb-8">
+          {board.map((row, rowIndex) => (
+            <div key={rowIndex} className="grid grid-cols-5 gap-1">
+              {row.map((tile, tileIndex) => (
+                <Tile
+                  key={`${rowIndex}-${tileIndex}`}
+                  letter={tile.letter}
+                  status={tile.status}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="w-full max-w-xl">
+          {keyboardRows.map((row, rowIndex) => (
+            <div key={rowIndex} className="flex justify-center gap-1.5 mb-1.5">
+              {row.map((key) => (
+                <KeyboardKey
+                  key={key}
+                  letter={key}
+                  onClick={handleKeyClick}
+                  isWide={key.length > 1}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {gameOver && (
+          <div className="mt-4 text-center">
+            <p className="text-xl font-bold">
+              Game Over! The word was: {targetWord}
+            </p>
           </div>
-        ))}
+        )}
+      </div>
+
+      {/* Right panel with suggestions */}
+      <div className="w-80 p-4 border-l border-gray-200">
+        <h2 className="text-lg font-bold mb-4">Suggested Words</h2>
+        <div className="space-y-2">
+          {suggestions.map(({ word, probability }, index) => (
+            <div key={index} className="flex justify-between">
+              <span className="font-mono uppercase">{word}</span>
+              <span className="text-gray-600">{(probability * 100).toFixed(2)}%</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-// Root App component
 function App() {
   return (
     <div className="min-h-screen bg-white">
@@ -165,7 +264,6 @@ function App() {
   );
 }
 
-// Mount the app
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

@@ -11,18 +11,12 @@ def interactive_guess(env, word_list):
     while True:
         
         print("\nCurrent State:", state)
-
-        # Use the updated method to get word suggestions based on probabilities
         word_probs = env.select_word_with_probabilities()
-        
-        # Extract the word suggestions and their probabilities from the word_probs list
         suggestions = [word for word, _ in word_probs]
         probabilities = [prob for _, prob in word_probs]
-        
-        # Print both words and their corresponding probabilities
         print("Suggestions for next guess and their probabilities:")
         for word, prob in zip(suggestions, probabilities):
-            print(f"{word}: {prob:.4f}")  # Display the probability with 4 decimal places
+            print(f"{word}: {prob:.4f}") 
 
         guessed_word = input("Enter your guess: ").strip().lower()
 

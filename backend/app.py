@@ -1,76 +1,72 @@
-from flask import Flask, request, jsonify
-import wordle_env
-import torch
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 import random
-from model import DQN
-import sys
+import wordle_env
 
 app = Flask(__name__)
+CORS(app)
 
-dqn.load_state_dict(torch.load("dqn_wordle.pth"))
-
+# Global variables to maintain game state
+current_env = None
 word_list = []
 common_words = []
-with open('data/wordle_words.txt') as f:
-    word_list = [line.strip() for line in f]
+past_answers = []
 
-with open('data/common_words.txt') as f:
-    common_words = [line.strip() for line in f]
+# Load word lists
+def load_word_lists():
+    global word_list, common_words, past_answers
+    with open('data/past_wordle_answers.txt') as f:
+        past_answers = [line.strip() for line in f]
+    with open('data/wordle_words.txt') as f:
+        word_list = [line.strip() for line in f]
+    with open('data/common_words.txt') as f:
+        common_words = [line.strip() for line in f]
 
-@app.route('/start_game', methods=['POST'])
+@app.route('/api/start-game', methods=['POST'])
 def start_game():
-    data = request.get_json()
-    target_word = data.get('target_word', 'crane')  
-    env = wordle_env.WordleEnv(target_word, word_list, common_words)
-    return jsonify({"message": "Game started", "target_word": target_word})
-
-
-@app.route('/make_guess', methods=['POST'])
-def make_guess():
-    data = request.get_json()
-    target_word = data.get('target_word', 'crane')
-    guessed_word = data.get('guessed_word')
+    global current_env
+    target_word = random.choice(past_answers)
+    current_env = wordle_env.WordleEnv(target_word, word_list, common_words)
+    current_env.reset()
     
-    env = wordle_env.WordleEnv(target_word, word_list, common_words)
-    action = word_list.index(guessed_word)
-    next_state, reward, done = env.step(action)
+    suggestions = current_env.select_word_with_probabilities()
+    return jsonify({
+        'status': 'success',
+        'suggestions': [{'word': word, 'probability': float(prob)} for word, prob in suggestions]
+    })
+
+@app.route('/api/make-guess', methods=['POST'])
+def make_guess():
+    global current_env
+    if not current_env:
+        return jsonify({'error': 'No active game'}), 400
+    
+    data = request.get_json()
+    guess = data.get('guess', '').lower()
+    
+    if guess not in word_list:
+        return jsonify({'error': 'Invalid word'}), 400
+    
+    action = word_list.index(guess)
+    state, reward, done = current_env.step(action)
+    
+    # Convert numpy arrays to lists for JSON serialization
+    state_list = state.tolist() if hasattr(state, 'tolist') else state
+    
+    suggestions = current_env.select_word_with_probabilities()
     
     response = {
-        "next_state": next_state,
-        "reward": reward,
-        "done": done,
-        "logs": env.get_logs()
+        'state': state_list,
+        'reward': float(reward),
+        'done': done,
+        'suggestions': [{'word': word, 'probability': float(prob)} for word, prob in suggestions]
     }
+    
+    if done:
+        response['target_word'] = current_env.get_target_word()
     
     return jsonify(response)
 
-
-@app.route('/test_model', methods=['POST'])
-def test_model():
-    data = request.get_json()
-    target_word = data.get('target_word', 'crane')
-    env = wordle_env.WordleEnv(target_word, word_list, common_words)
-    reward = test_dqn(env, dqn, word_list)
-    return jsonify({"test_reward": reward})
-
-
-def test_dqn(env, dqn, word_list):
-    total_reward = 0
-    state = env.reset()
-    while True:
-        # Use frequency analysis and heuristics to select actions
-        candidate_words = env.select_word()
-        guessing_word = random.choice(candidate_words)
-        action = word_list.index(guessing_word)
-        
-        next_state, reward, done = env.step(action)
-        total_reward += reward
-        state = next_state
-        
-        if done:
-            break
-    
-    return total_reward
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    load_word_lists()
+    app.run(debug=True, port=5000)
