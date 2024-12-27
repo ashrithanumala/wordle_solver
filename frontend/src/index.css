@@ -9,11 +9,22 @@
     border-right: 10px solid transparent;
     border-bottom: 10px solid blue;
     position: absolute;
-    left: -20px; /* Position the triangle to the left of the box */
+    left: -20px;
     top: 0;
     transition: top 0.3s ease-in-out;
   }
   
-  .board-container {
-    position: relative;
-  }
+.board-container {
+  position: relative;
+}
+
+.row-indicator {
+  position: absolute;
+  left: -20px;
+  width: 10px;
+  height: 100%;
+  background-color: blue;
+  border-radius: 4px;
+}
+
+

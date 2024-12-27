@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import { Alert } from './components/Alert'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Card, CardHeader, CardTitle, CardContent } from './components/Card';
 
 type TileStatus = 'empty' | 'filled' | 'correct' | 'present' | 'absent';
 
@@ -17,16 +16,7 @@ interface Suggestion {
   probability: number;
 }
 
-interface Suggestion {
-  word: string;
-  probability: number;
-}
-
-interface SuggestionsDashboardProps {
-  suggestions?: Suggestion[];
-}
-
-const Tile: React.FC<TileProps & { isCurrent?: boolean }> = ({ letter, status, isCurrent }) => {
+const Tile: React.FC<TileProps & { isCurrent?: boolean }> = ({ letter, status }) => {
   const baseStyles = "w-14 h-14 border-2 flex items-center justify-center text-2xl font-bold uppercase transition-colors duration-500 relative";
   
   const statusStyles = {
@@ -39,16 +29,10 @@ const Tile: React.FC<TileProps & { isCurrent?: boolean }> = ({ letter, status, i
 
   return (
     <div className={`${baseStyles} ${statusStyles[status]}`}>
-      {isCurrent && (
-        <div className="absolute left-0 top-0 transform -translate-x-3">
-          <span className="text-blue-500 text-2xl">➔</span>
-        </div>
-      )}
       {letter}
     </div>
   );
 };
-
 
 const KeyboardKey: React.FC<{ 
   letter: string; 
@@ -91,6 +75,7 @@ const WordleGame: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [gameSession, setGameSession] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (error) {
@@ -296,13 +281,14 @@ const WordleGame: React.FC = () => {
         {/* Game Board */}
         <div className="grid grid-rows-6 gap-1 mb-8">
           {board.map((row, rowIndex) => (
-            <div key={rowIndex} className="grid grid-cols-5 gap-1">
+            <div key={rowIndex} className={`grid grid-cols-5 gap-1 relative
+            }`}>
+              {rowIndex === currentRow && <div className="row-indicator"></div>}
               {row.map((tile, tileIndex) => (
                 <Tile
                   key={`${rowIndex}-${tileIndex}`}
                   letter={tile.letter}
                   status={tile.status}
-                  isCurrent={rowIndex === currentRow && tileIndex === currentTile}
                 />
               ))}
             </div>
