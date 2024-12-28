@@ -48,6 +48,8 @@ npm run dev
    - 🟨 Yellow: Correct letter in wrong position
    - ⬜ Gray: Letter not in word
 
+<img width="1502" alt="Screenshot 2024-12-28 at 12 24 29 PM" src="https://github.com/user-attachments/assets/114e584b-a9ca-46e1-99df-d6343c682899" />
+
 ## Technical Details
 
 ### Frontend
