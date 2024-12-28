@@ -336,7 +336,7 @@ const WordleGame: React.FC = () => {
   
       {/* Right Half - Suggestions */}
       <div className="w-1/2 p-8 border-l border-gray-200 flex flex-col">
-        <h2 className="text-2xl font-bold mb-6">Suggested Words</h2>
+        <h1 className="text-4xl font-bold text-center">Suggested Words</h1>
           <div className="flex-1 min-h-[600px]">
             <ResponsiveContainer width="95%" height="100%">
               <PieChart>
