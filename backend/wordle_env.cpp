@@ -1,4 +1,3 @@
-#include "cuckoo.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <vector>
@@ -27,11 +26,9 @@ public:
         state = std::vector<int>(target_word.size(), 0);
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
-
-        // Initialize cuckoo filters for position, letter, and wrong letter tracking
-        filter_by_position.resize(target_word.size(), CuckooFilter(10000, 4));
-        filter_by_letter = CuckooFilter(10000, 4);
-        filter_wrong_letters = CuckooFilter(10000, 4);
+        for (size_t i = 0; i < target_word.size(); ++i) {
+            target_letter_counts[target_word[i]]++;
+        }
 
     }
 
@@ -44,13 +41,6 @@ public:
         potential_words = word_list;
         letter_probs = calculate_letter_frequencies(potential_words);
         logs.clear();
-
-        // Reset filters
-        for (auto& filter : filter_by_position) {
-            filter = CuckooFilter(10000, 4);
-        }
-        filter_by_letter = CuckooFilter(10000, 4);
-        filter_wrong_letters = CuckooFilter(10000, 4);
 
         return state;
     }
@@ -68,15 +58,12 @@ public:
             if (guessed_word[i] == target_word[i]) {
                 reward += RIGHT_REWARD;
                 correct_positions[i] = guessed_word[i];
-                filter_by_position[i].insert(std::string(1, guessed_word[i]));
             } else if (target_word.find(guessed_word[i]) != std::string::npos) {
                 reward += PARTIAL_REWARD;
                 right_letter_wrong_positions[guessed_word[i]].push_back(i);
-                filter_by_letter.insert(std::string(1, guessed_word[i]));
             } else {
                 reward += WRONG_PENALTY;
                 guessed_wrong_letters.insert(guessed_word[i]);
-                filter_wrong_letters.insert(std::string(1, guessed_word[i]));
             }
         }
 
@@ -169,6 +156,7 @@ public:
             }
 
             // Ensure wrong letters are not present
+            if(!valid) continue;
             for (const auto& letter : guessed_wrong_letters) {
                 if (word.find(letter) != std::string::npos) {
                     valid = false;
@@ -177,6 +165,7 @@ public:
             }
 
             // Ensure right letters in wrong positions are present but not in those positions
+            if(!valid) continue;
             for (const auto& pair : right_letter_wrong_positions) {
                 if (word.find(pair.first) == std::string::npos) {
                     valid = false;
@@ -191,13 +180,20 @@ public:
                 if (!valid) break;
             }
 
-            // Ensure the word does not contain any tried letters
-            for (const auto& letter : guessed_wrong_letters) {
-                if (word.find(letter) != std::string::npos) {
+            // Ensure guessed words with multiple letters are properly accounted for
+            if(!valid) continue;
+            std::unordered_map<char, int> word_letter_counts;
+            for (char c : word) {
+                word_letter_counts[c]++;
+            }
+            for (const auto& pair : word_letter_counts) {
+                if (target_letter_counts.find(pair.first) != target_letter_counts.end() && pair.second > target_letter_counts[pair.first]) {
                     valid = false;
                     break;
                 }
             }
+
+
 
             if (valid) new_potential_words.push_back(word);
         }
@@ -307,12 +303,9 @@ private:
     std::unordered_map<char, std::vector<int>> right_letter_wrong_positions;
     std::unordered_map<int, char> correct_positions;
     std::vector<std::unordered_map<char, double>> letter_probs;
+    std::unordered_map<char, int> target_letter_counts;
     std::vector<std::string> logs;
 
-    // Cuckoo Filters
-    std::vector<CuckooFilter> filter_by_position; // One filter for each position in the word
-    CuckooFilter filter_by_letter; // Filter for managing letters
-    CuckooFilter filter_wrong_letters; // Filter for managing wrong letters
 
     std::vector<std::pair<std::string, double>> apply_softmax(const std::vector<std::pair<std::string, double>>& scores) {
         double max_score = -std::numeric_limits<double>::infinity();
