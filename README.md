@@ -70,25 +70,3 @@ npm run dev
 
 ### Reinforcement learning agent
 - you can also test the agent on custom words using instructions found in backend/test.py
-
-## Project Structure
-\```
-wordle-ai/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   └── index.tsx
-│   ├── package.json
-│   └── index.html
-├── backend/
-│   ├── data/
-│   │   ├── wordle_words.txt
-│   │   ├── common_words.txt
-│   │   └── past_wordle_answers.txt
-│   ├── app.py
-│   ├── wordle_env.py
-│   └── requirements.txt
-└── start.sh
-\```
-
-Thank you for making it this far!
