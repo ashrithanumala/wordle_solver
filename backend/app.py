@@ -1,14 +1,24 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_caching import Cache
 import random
 import wordle_env
 import logging
 import uuid
+import requests
+import datetime
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173"]}}, 
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization", "Access-Control-Allow-Credentials"])
+
+cache = Cache(app, config={'CACHE_TYPE': 'simple', 'CACHE_DEFAULT_TIMEOUT': 86400})
+
+class GameSession:
+    def __init__(self, env, is_daily):
+        self.env = env
+        self.is_daily = is_daily
 
 game_sessions = {}
 current_env = None
@@ -30,8 +40,20 @@ def load_word_lists():
         return False
     return True
 
-@app.route('/api/start-game', methods=['POST', 'OPTIONS'])
-def start_game():
+@cache.cached(timeout=86400, key_prefix='daily_word')
+def get_daily_word():
+    try:
+        date = datetime.date.today()
+        url = f"https://www.nytimes.com/svc/wordle/v2/{date:%Y-%m-%d}.json"
+        response = requests.get(url)
+        if response.status_code == 200:
+            return response.json()['solution'].lower()
+    except Exception as e:
+        print(f"Error fetching daily word: {e}")
+        return None
+
+@app.route('/api/start-game-random', methods=['POST', 'OPTIONS'])
+def start_game_random():
     global game_sessions
     if not word_list and not load_word_lists():
         return jsonify({'error': 'Word lists not loaded'}), 500
@@ -41,7 +63,31 @@ def start_game():
     new_env.reset()
     
     session_id = str(uuid.uuid4())
-    game_sessions[session_id] = new_env
+    game_sessions[session_id] = GameSession(new_env, False)
+    
+    suggestions = new_env.select_word_with_probabilities()
+    return jsonify({
+        'status': 'success',
+        'session_id': session_id,
+        'suggestions': [{'word': word, 'probability': float(prob)} for word, prob in suggestions]
+    })
+
+
+@app.route('/api/start-game-daily', methods=['POST', 'OPTIONS'])
+def start_game_daily():
+    global game_sessions
+    if not word_list and not load_word_lists():
+        return jsonify({'error': 'Word lists not loaded'}), 500
+    
+    target_word = get_daily_word()
+    if not target_word:
+        return jsonify({'error': 'Could not fetch daily word'}), 500
+    
+    new_env = wordle_env.WordleEnv(target_word, word_list, common_words)
+    new_env.reset()
+    
+    session_id = str(uuid.uuid4())
+    game_sessions[session_id] = GameSession(new_env, True)
     
     suggestions = new_env.select_word_with_probabilities()
     return jsonify({
@@ -66,13 +112,14 @@ def make_guess():
         if not session_id or session_id not in game_sessions:
             return jsonify({'error': 'Invalid session'}), 400
             
-        current_env = game_sessions[session_id]
+        game_session = game_sessions[session_id]
+        current_env = game_session.env  # This is already the WordleEnv instance
         
         if guess not in word_list:
             return jsonify({'error': 'Invalid word'}), 400
             
         action = word_list.index(guess)
-        state, reward, done = current_env.step(action)
+        state, reward, done = current_env.step(action)  # Call methods directly on current_env
         
         state_list = state.tolist() if hasattr(state, 'tolist') else state
         suggestions = current_env.select_word_with_probabilities()
@@ -82,7 +129,8 @@ def make_guess():
             'reward': float(reward),
             'done': done,
             'suggestions': [{'word': word, 'probability': float(prob)} for word, prob in suggestions],
-            'current_row': int(current_env.get_guesses())
+            'current_row': int(current_env.get_guesses()),
+            'is_daily': game_session.is_daily
         }
         
         if done:
@@ -94,6 +142,7 @@ def make_guess():
     except Exception as e:
         print(f"Error in make_guess: {str(e)}")
         return jsonify({'error': 'Server error'}), 500
+
 
 logging.basicConfig(level=logging.DEBUG)
 app.logger.setLevel(logging.DEBUG)

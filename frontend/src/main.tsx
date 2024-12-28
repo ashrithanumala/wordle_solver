@@ -86,9 +86,13 @@ const WordleGame: React.FC = () => {
     }
   }, [error]);
 
-  const startNewGame = async () => {
+  const startNewGame = async (mode: 'random' | 'daily') => {
     try {
-      const response = await fetch('http://localhost:5001/api/start-game', {
+      const endpoint = mode === 'random' 
+        ? 'http://localhost:5001/api/start-game-random' 
+        : 'http://localhost:5001/api/start-game-daily';
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -117,6 +121,7 @@ const WordleGame: React.FC = () => {
       }
     } catch (error) {
       console.error('Error starting game:', error);
+      setError('Failed to start game. Please try again.');
     }
   };
 
@@ -268,15 +273,23 @@ const WordleGame: React.FC = () => {
       {/* Left Half - Grid */}
       <div className="w-1/2 flex flex-col items-center p-8">
         <header className="w-full max-w-xl pb-2 mb-8">
-          <h1 className="text-4xl font-bold text-center">Wordle (Solver)</h1>
+          <h1 className="text-4xl font-bold text-center">Wordle (Boosted)</h1>
         </header>
   
-        <button
-          onClick={startNewGame}
-          className="w-64 py-3 px-4 bg-black text-white rounded hover:bg-gray-800 transition-colors mb-12"
-        >
-          Start Game
-        </button>
+        <div className="flex gap-4 mb-12">
+          <button
+            onClick={() => startNewGame('random')}
+            className="py-3 px-4 bg-black text-white rounded hover:bg-gray-800 transition-colors"
+          >
+            Play Random Word
+          </button>
+          <button
+            onClick={() => startNewGame('daily')}
+            className="py-3 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Play Daily Word
+          </button>
+        </div>
   
         {/* Game Board */}
         <div className="grid grid-rows-6 gap-1 mb-8">
@@ -323,7 +336,7 @@ const WordleGame: React.FC = () => {
   
       {/* Right Half - Suggestions */}
       <div className="w-1/2 p-8 border-l border-gray-200 flex flex-col">
-        <h2 className="text-2xl font-bold mb-6">Suggested Words</h2>
+        <h1 className="text-4xl font-bold text-center">Suggested Words</h1>
           <div className="flex-1 min-h-[600px]">
             <ResponsiveContainer width="95%" height="100%">
               <PieChart>
